@@ -1,0 +1,41 @@
+name: "Frogbot Scan Repository"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  scan-repository:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: ["main"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
+      - name: Setup JFrog CLI with OIDC
+        uses: jfrog/setup-jfrog-cli@v4
+        id: setup-cli
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: github-frogbot
+          oidc-audience: jfrog-github
+
+      - name: Run Frogbot
+        uses: jfrog/frogbot@v3
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ steps.setup-cli.outputs.oidc-token }}
+          JF_PROJECT: mrk
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_BASE_BRANCH: ${{ matrix.branch }}
+          JFROG_CLI_LOG_LEVEL: DEBUG
